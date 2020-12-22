@@ -4,6 +4,24 @@ const app = require('../app');
 const debug = require('debug')('backend:server');
 const http = require('http');
 
+if (!String.prototype.splice) {
+  /**
+   * {JSDoc}
+   *
+   * The splice() method changes the content of a string by removing a range of
+   * characters and/or adding new characters.
+   *
+   * @this {String}
+   * @param {number} start Index at which to start changing the string.
+   * @param {number} delCount An integer indicating the number of old chars to remove.
+   * @param {string} newSubStr The String that is spliced in.
+   * @return {string} A new string with the spliced substring.
+   */
+  String.prototype.splice = function(start, delCount, newSubStr='') {
+      return this.slice(0, start) + newSubStr + this.slice(start + Math.abs(delCount));
+  };
+}
+
 /**
  * Get port from environment and store in Express.
  */
@@ -16,6 +34,14 @@ app.set('port', port);
  */
 
 const server = http.createServer(app);
+const io = require('socket.io')(server, {
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST']
+  }
+});
+
+require('../io')(io);
 
 /**
  * Listen on provided port, on all network interfaces.
