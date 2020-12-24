@@ -4,3 +4,6 @@
 .editor-content {
   width: 100%;
 }
+.fake-line {
+  height: 15px;
+}

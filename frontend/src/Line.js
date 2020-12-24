@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useReducer } from 'react';
 
-function Cursor() {
+function Cursor({ blink }) {
     return (
-        <span style={{ position: 'relative', width: 0 }} className='blink'>
+        <span style={{ position: 'relative', width: 0 }} className={blink ? 'blink' : ''}>
             <span style={{ position: 'absolute', borderLeft: '2px solid black', height: '100%' }}></span>
         </span>
     );
@@ -46,9 +46,11 @@ function reducer(state, action) {
 
 function Line({ number: lineNumber, channelId='default', socket, children }) {
     const [state, dispatch] = useReducer(reducer, { value: '', cursor: null });
+    const [blink, setBlink] = useState(true);
+    const [blinkTimeout, setBlinkTimeout] = useState(-1);
     const cursorChannel = new BroadcastChannel(`cursor_${channelId}`);
 
-    const value = state.value;
+    const value = state.value || '';
     const cursor = state.cursor;
 
     const chars = value.split('');
@@ -80,7 +82,7 @@ function Line({ number: lineNumber, channelId='default', socket, children }) {
         return () => {
             cursorChannel.removeEventListener('message', handleCursorMessage);
         };
-    }, [cursor, handleCursorMessage]);
+    }, [cursor, lineNumber, handleCursorMessage, setCursor]);
 
     useEffect(() => {
         if(socket) {
@@ -121,7 +123,6 @@ function Line({ number: lineNumber, channelId='default', socket, children }) {
             setCursor(null);
         }
         else if(msg.data.linePosition !== null) {
-            console.log(msg.data);
             setCursor(msg.data.linePosition === 'end' ? chars.length : Math.min(msg.data.linePosition, chars.length));
         }
     }
@@ -135,6 +136,14 @@ function Line({ number: lineNumber, channelId='default', socket, children }) {
 
     function handleKeyPress(e) {
         e.preventDefault();
+
+        if(!blink) {
+            clearTimeout(blinkTimeout);
+        }
+        setBlink(false);
+        setBlinkTimeout(setTimeout(() => {
+            setBlink(true);
+        }, 1000));
 
         if(e.key.length === 1 && e.key.charCodeAt(0) <= 127) {
             socket.emit('editInsert', lineNumber, cursor, e.key);
@@ -208,21 +217,21 @@ function Line({ number: lineNumber, channelId='default', socket, children }) {
     }
 
     return (
-        <div style={{ display: 'flex', cursor: 'text' }}>
+        <div id={lineNumber + 1} style={{ display: 'flex', cursor: 'text', height: 15 }}>
             <LineNumber onMouseDown={() => handleCharClick(0)}>{lineNumber + 1}</LineNumber>
             <span>&nbsp;</span>
             <span style={{ whiteSpace: 'pre' }}>
                 { chars.map((c, i) => (
                     <React.Fragment key={i}>
                         { cursor === i && (
-                            <Cursor/>
+                            <Cursor blink={blink}/>
                         )}
                         <span onMouseDown={() => handleCharClick(i)}>{c}</span>
                     </React.Fragment>
                 )) }
             </span>
             { cursor === chars.length && (
-                <Cursor/>
+                <Cursor blink={blink}/>
             )}
             <span style={{ flexGrow: 1 }} onMouseDown={() => handleCharClick(chars.length)}/>
         </div>
