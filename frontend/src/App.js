@@ -3,23 +3,25 @@ import SocketIO from 'socket.io-client';
 import './App.css';
 import Line from './Line';
 
+/* global BigInt */
+
 const cursorChannelId = Math.random().toString();
-const pageSize = 500;
-const paddingLines = 100;
+const pageSize = 500n;
+const paddingLines = 100n;
 
 function App() {
   const [socket, setSocket] = useState(null);
-  const [lineStart, setLineStart] = useState(0);
+  const [lineStart, setLineStart] = useState(BigInt(window.location.hash ? parseInt(window.location.hash.substring(1)) - 1 : 0));
   const [lineEnd, setLineEnd] = useState(lineStart + pageSize);
   const [initLines, setInitLines] = useState(null);
   const [loadingLines, setLoadingLines] = useState(false);
-  const [currentLine, setCurrentLine] = useState(0);
+  const [currentLine, setCurrentLine] = useState(lineStart);
 
   useEffect(() => {
     const socket = SocketIO('http://192.168.1.7:8080');
     setSocket(socket);
 
-    socket.emit('fetchLines', lineStart, lineEnd);
+    socket.emit('fetchLines', lineStart.toString(), lineEnd.toString());
     function handleLines(lines) {
       setInitLines(lines);
       socket.off('lines', this);
@@ -50,7 +52,7 @@ function App() {
       const scrollHeight = document.body.scrollHeight;
       if(scrollY >= scrollHeight - 2.5 * window.innerHeight && !loadingLines) {
         setLoadingLines(true);
-        socket.emit('fetchLines', lineEnd, lineEnd + pageSize);
+        socket.emit('fetchLines', lineEnd.toString(), (lineEnd + pageSize).toString());
         socket.on('lines', handleLines);
       }
     }
@@ -65,7 +67,7 @@ function App() {
   useEffect(() => {
     function refreshHash() {
       // 15 because that's the 'line-height' of each line
-      const _currentLine = Math.round(window.scrollY / 15);
+      const _currentLine = BigInt(Math.round(window.scrollY / 15));
       if(_currentLine !== currentLine) {
         setCurrentLine(_currentLine);
       }
@@ -76,7 +78,7 @@ function App() {
   }, [setCurrentLine, currentLine]);
 
   useEffect(() => {
-    const line = document.getElementById((currentLine + 1) + '');
+    const line = document.getElementById((currentLine + 1n).toString());
     if(!line) return;
     const preId = line.id;
     line.id = line.id + '_tmp';
@@ -87,11 +89,11 @@ function App() {
   const lines = [];
   if(initLines) {
     for(let n=lineStart; n<lineEnd; n++) {
-      if(n >= currentLine - paddingLines && n <= currentLine + (window.innerHeight / 15) + paddingLines) {
+      if(n - lineStart >= currentLine - paddingLines && n - lineStart <= currentLine + BigInt(Math.floor(window.innerHeight / 15)) + paddingLines) {
         lines.push(<Line key={n} channelId={cursorChannelId} number={n} socket={socket}>{initLines[n-lineStart]}</Line>);
       }
       else {
-        lines.push(<div key={n} id={n + 1} className='fake-line'/>);
+        lines.push(<div key={n} id={n + 1n} className='fake-line'/>);
       }
     }
   }

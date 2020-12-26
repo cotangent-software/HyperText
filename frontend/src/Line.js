@@ -2,7 +2,7 @@ import React, { useState, useEffect, useReducer } from 'react';
 
 function Cursor({ blink }) {
     return (
-        <span style={{ position: 'relative', width: 0 }} className={blink ? 'blink' : ''}>
+        <span id='cursor' style={{ position: 'relative', width: 0 }} className={blink ? 'blink' : ''}>
             <span style={{ position: 'absolute', borderLeft: '2px solid black', height: '100%' }}></span>
         </span>
     );
@@ -35,7 +35,7 @@ function reducer(state, action) {
         out.value = action.value;
     }
     else if(action.type === 'INSERT') {
-        out.value = state.value.splice(charIndex, 0, action.key);
+        out.value = (state.value || '').splice(charIndex, 0, action.key);
     }
     else if(action.type === 'BACKSPACE') {
         out.value = state.value.splice(charIndex-1, 1);
@@ -74,7 +74,7 @@ function Line({ number: lineNumber, channelId='default', socket, children }) {
                 window.removeEventListener('keydown', handleKeyPress);
             };
         }
-    }, [cursor, lineNumber]);
+    }, [cursor, lineNumber, handleKeyPress]);
 
     useEffect(() => {
         cursorChannel.addEventListener('message', handleCursorMessage);
@@ -137,6 +137,8 @@ function Line({ number: lineNumber, channelId='default', socket, children }) {
     function handleKeyPress(e) {
         e.preventDefault();
 
+        const scrollToCursor = () => document.getElementById('cursor').scrollIntoView(false);
+
         if(!blink) {
             clearTimeout(blinkTimeout);
         }
@@ -146,7 +148,8 @@ function Line({ number: lineNumber, channelId='default', socket, children }) {
         }, 1000));
 
         if(e.key.length === 1 && e.key.charCodeAt(0) <= 127) {
-            socket.emit('editInsert', lineNumber, cursor, e.key);
+            scrollToCursor();
+            socket.emit('editInsert', lineNumber.toString(), cursor, e.key);
             dispatch({
                 type: 'INSERT',
                 charIndex: 'cursor',
@@ -160,7 +163,7 @@ function Line({ number: lineNumber, channelId='default', socket, children }) {
         else if(e.key === 'Backspace') {
             if(cursor === 0) {
                 if(lineNumber > 0) {
-                    moveCursor(lineNumber - 1, 'end');
+                    moveCursor(lineNumber - 1n, 'end');
                 }
             }
             else {
@@ -176,11 +179,11 @@ function Line({ number: lineNumber, channelId='default', socket, children }) {
             }
         }
         else if(e.key === 'Enter') {
-            moveCursor(lineNumber + 1, 'end');
+            moveCursor(lineNumber + 1n, 'end');
         }
         else if(e.key === 'ArrowLeft') {
             if(cursor === 0) {
-                moveCursor(lineNumber - 1, 'end');
+                moveCursor(lineNumber - 1n, 'end');
             }
             else {
                 setCursor(cursor - 1);
@@ -188,7 +191,7 @@ function Line({ number: lineNumber, channelId='default', socket, children }) {
         }
         else if(e.key === 'ArrowRight') {
             if(cursor === chars.length) {
-                moveCursor(lineNumber + 1, 0);
+                moveCursor(lineNumber + 1n, 0);
                 setCursor(null);
             }
             else {
@@ -197,11 +200,11 @@ function Line({ number: lineNumber, channelId='default', socket, children }) {
         }
         else if(e.key === 'ArrowUp') {
             if(lineNumber > 0) {
-                moveCursor(lineNumber - 1, cursor);
+                moveCursor(lineNumber - 1n, cursor);
             }
         }
         else if(e.key === 'ArrowDown') {
-            moveCursor(lineNumber + 1, cursor);
+            moveCursor(lineNumber + 1n, cursor);
         }
         else if(e.key === 'Home') {
             setCursor(0);
@@ -217,8 +220,8 @@ function Line({ number: lineNumber, channelId='default', socket, children }) {
     }
 
     return (
-        <div id={lineNumber + 1} style={{ display: 'flex', cursor: 'text', height: 15 }}>
-            <LineNumber onMouseDown={() => handleCharClick(0)}>{lineNumber + 1}</LineNumber>
+        <div id={lineNumber + 1n} style={{ display: 'flex', cursor: 'text', height: 15 }}>
+            <LineNumber onMouseDown={() => handleCharClick(0)}>{(lineNumber + 1n).toString()}</LineNumber>
             <span>&nbsp;</span>
             <span style={{ whiteSpace: 'pre' }}>
                 { chars.map((c, i) => (
